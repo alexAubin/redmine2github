@@ -357,34 +357,61 @@ class GithubIssueMaker:
         # (3) Create the issue on github
         #
 
-        issue_obj = self.get_github_conn().issues.create(github_issue_dict)
-        #issue_obj = self.get_github_conn().issues.update(151, github_issue_dict)
+        #issue_obj = self.get_github_conn().issues.create(github_issue_dict)
 
-        msgt('Github issue created: %s' % issue_obj.number)
-        msg('issue id: %s' % issue_obj.id)
-        msg('issue url: %s' % issue_obj.html_url)
+        #msgt('Github issue created: %s' % issue_obj.number)
+        #msg('issue id: %s' % issue_obj.id)
+        #msg('issue url: %s' % issue_obj.html_url)
 
-
-        # Map the new github Issue number to the redmine issue number
-        #
-        #redmine2github_id_map.update({ rd.get('id', 'unknown') : issue_obj.number })
-
-        #print( redmine2github_id_map)
 
         #
         # (4) Add the redmine comments (journals) as github comments
         #
+        comments_data = []
         if include_comments:
             journals = rd.get('journals', None)
-            if journals:
-                self.add_comments_for_issue(issue_obj.number, journals)
+            #if journals:
+                #self.add_comments_for_issue(issue_obj.number, journals)
+            for j in journals:
+                notes = j.get('notes', None)
+                if not notes:
+                    continue
 
+                author_name = j.get('user', {}).get('name', None)
+                author_github_username = self.format_name_for_github(author_name)
+
+                # TODO: prepend original redmine author to comment body text
+                comment = [
+                    {
+                     'body' : translate_for_github(notes),
+                      'created_at' : j.get('created_on', None),
+                    }
+                ]
+                comments_data.append(comment)
 
         #
         #   (5) Should this issue be closed?
         #
-        if self.is_redmine_issue_closed(rd):
-            self.close_github_issue(issue_obj.number)
+        #if self.is_redmine_issue_closed(rd):
+        #    self.close_github_issue(issue_obj.number)
+
+        # use the github issue import api to import the issue in one api call (with correct dates)
+        # see: https://gist.github.com/jonmagic/5282384165e0f86ef105
+        issue_data = {
+          'issue' : {
+            'title' : rd.get('subject'),
+            'body' : description_info,
+            'created_at' : rd.get('start_date', None),
+            'assignee' : assignee,
+            'milestone' : milestone_number,
+            'closed' : self.is_redmine_issue_closed(rd),
+            'labels' : self.label_helper.get_label_names_from_issue(rd),
+          },
+          'comments' : comments_data,
+
+        }
+
+        print(issue_data)
 
         return issue_obj.number
 
