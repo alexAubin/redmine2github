@@ -382,12 +382,10 @@ class GithubIssueMaker:
                 author_github_username = self.format_name_for_github(author_name)
 
                 # TODO: prepend original redmine author to comment body text
-                comment = [
-                    {
-                     'body' : translate_for_github(notes),
-                      'created_at' : j.get('created_on', None),
-                    }
-                ]
+                comment = {
+                    'body' : translate_for_github(notes),
+                    'created_at' : j.get('created_on', None),
+                }
                 comments_data.append(comment)
 
         #
@@ -400,14 +398,13 @@ class GithubIssueMaker:
           'issue' : {
             'title' : rd.get('subject'),
             'body' : description_info,
-            'created_at' : rd.get('start_date', None),
+            'created_at' : rd.get('created_on', None),
             'assignee' : assignee,
             'milestone' : milestone_number,
             'closed' : self.is_redmine_issue_closed(rd),
             'labels' : self.label_helper.get_label_names_from_issue(rd),
           },
           'comments' : comments_data,
-
         }
 
         return self.import_issue(issue_data)
