@@ -426,12 +426,16 @@ class GithubIssueMaker:
 
         r = requests.post(url, data = json.dumps(issue_data), auth = auth, headers = headers)
 
-        # TODO: need error handling
-        #       check http status
-        #       check github json for status: failed
-        print(r.json())
+        print(r.status_code)
+        if r.status_code != 200 and r.status_code != 202:
+            msgx('Error importing issue. github http response status %s. json received: %s' % (r.status_code, r.json()))
+        github_response = r.json()
 
-        return r.json()['id']
+        # TODO: need error handling
+        #       check github json for status: failed
+        print(github_response)
+
+        return github_response['id']
 
 
     def is_redmine_issue_closed(self, redmine_issue_dict):
