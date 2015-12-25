@@ -2,6 +2,7 @@ from __future__ import print_function
 import os
 import sys
 import json
+import requests
 
 
 if __name__=='__main__':
@@ -395,8 +396,6 @@ class GithubIssueMaker:
         #if self.is_redmine_issue_closed(rd):
         #    self.close_github_issue(issue_obj.number)
 
-        # use the github issue import api to import the issue in one api call (with correct dates)
-        # see: https://gist.github.com/jonmagic/5282384165e0f86ef105
         issue_data = {
           'issue' : {
             'title' : rd.get('subject'),
@@ -411,9 +410,28 @@ class GithubIssueMaker:
 
         }
 
-        print(issue_data)
+        return self.import_issue(issue_data)
 
-        return issue_obj.number
+    # use the github issue import api to import an issue in one api call (with correct dates)
+    # see: https://gist.github.com/jonmagic/5282384165e0f86ef105
+    def import_issue(self, issue_data):
+
+        url = 'https://api.github.com/repos/{}/{}/import/issues'.format(get_github_auth()['user'], get_github_auth()['repo'])
+
+        headers = {
+            'Accept' : 'application/vnd.github.golden-comet-preview+json'
+        }
+
+        auth = (get_github_auth()['login'], get_github_auth()['password'])
+
+        r = requests.post(url, data = json.dumps(issue_data), auth = auth, headers = headers)
+
+        # TODO: need error handling
+        #       check http status
+        #       check github json for status: failed
+        print(r.json())
+
+        return r.json()['id']
 
 
     def is_redmine_issue_closed(self, redmine_issue_dict):
