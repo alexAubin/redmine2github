@@ -203,7 +203,7 @@ class MigrationManager:
                 mapping_dict.update({ redmine_issue_num : github_issue_number})
                 self.save_dict_to_file(mapping_dict)
         
-            if issue_cnt % 50 == 0:
+            if issue_cnt % 2 == 0:
                 msgt('sleep 1 seconds....')
                 time.sleep(1)
 
