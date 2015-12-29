@@ -29,6 +29,7 @@ class MigrationManager:
         
         self.include_comments = kwargs.get('include_comments', True)
         self.include_assignee = kwargs.get('include_assignee', True)
+        self.include_redmine_links = kwargs.get('include_redmine_links', True)
 
 
         self.user_mapping_filename = kwargs.get('user_mapping_filename', None)
@@ -153,7 +154,7 @@ class MigrationManager:
             
             json_fname_fullpath = os.path.join(self.redmine_json_directory, json_fname)
         
-            gm.update_github_issue_with_related(json_fname_fullpath, redmine2github_issue_map)
+            gm.update_github_issue_with_related(json_fname_fullpath, redmine2github_issue_map, self.include_redmine_links)
             
     
     
@@ -202,6 +203,7 @@ class MigrationManager:
             json_fname_fullpath = os.path.join(self.redmine_json_directory, json_fname)
             gm_kwargs = { 'include_assignee' : self.include_assignee \
                          , 'include_comments' : self.include_comments \
+                         , 'include_redmine_links' : self.include_redmine_links \
                         }
 
             github_import_num = gm.make_github_issue(json_fname_fullpath, **gm_kwargs)
@@ -237,6 +239,7 @@ if __name__=='__main__':
                 , redmine_issue_end_number=5000\
                 #, user_mapping_filename=USER_MAP_FILE       # optional
                 , include_assignee=False    # Optional. Assignee must be in the github repo and USER_MAP_FILE above
+                , include_redmine_links=False    # Optional. will create links back to original redmine installation
                 , label_mapping_filename=LABEL_MAP_FILE     # optional
                 #, milestone_mapping_filename=MILESTONE_MAP_FILE # optional
             )
@@ -254,7 +257,7 @@ if __name__=='__main__':
     #        update github issues to include tickets to related tickets
     #
     #-------------------------------------------------
-    #mm.migrate_related_tickets()
+    mm.migrate_related_tickets()
 
 
         

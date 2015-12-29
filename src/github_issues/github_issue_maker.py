@@ -107,7 +107,7 @@ class GithubIssueMaker:
         return github_username
 
 
-    def update_github_issue_with_related(self, redmine_json_fname, redmine2github_issue_map):
+    def update_github_issue_with_related(self, redmine_json_fname, redmine2github_issue_map, include_redmine_links):
         """
         Update a GitHub issue with related tickets as specfied in Redmine
 
@@ -212,25 +212,24 @@ class GithubIssueMaker:
         if len(original_related_tickets) == 0 and len(original_child_tickets)==0:
             return
 
-        # Format related ticket numbers
-        #
-        original_issues_formatted = [ """[%s](%s)""" % (x, self.format_redmine_issue_link(x)) for x in original_related_tickets]
-        original_issues_str = ', '.join(original_issues_formatted)
+        # Format related and children ticket numbers
+        original_issues_str = ""
+        original_children_str = ""
+        if include_redmine_links:
+            original_issues_formatted = [ """[%s](%s)""" % (x, self.format_redmine_issue_link(x)) for x in original_related_tickets]
+            original_issues_str = ', '.join(original_issues_formatted)
+            msg('Redmine related issues: %s' % original_issues_str)
+
+            original_children_formatted = [ """[%s](%s)""" % (x, self.format_redmine_issue_link(x)) for x in original_child_tickets]
+            original_children_str = ', '.join(original_children_formatted)
+            msg('Redmine sub-issues: %s' % original_children_str)
 
         related_issues_formatted = [ '#%d' % int(x) for x in github_related_tickets]
         related_issue_str = ', '.join(related_issues_formatted)
-        msg('Redmine related issues: %s' % original_issues_str)
         msg('Github related issues: %s' % related_issue_str)
-
-
-        # Format children ticket numbers
-        #
-        original_children_formatted = [ """[%s](%s)""" % (x, self.format_redmine_issue_link(x)) for x in original_child_tickets]
-        original_children_str = ', '.join(original_children_formatted)
 
         github_children_formatted = [ '#%d' % x for x in github_child_tickets]
         github_children_str = ', '.join(github_children_formatted)
-        msg('Redmine sub-issues: %s' % original_children_str)
         msg('Github sub-issues: %s' % github_children_str)
 
         try:
@@ -306,6 +305,7 @@ class GithubIssueMaker:
 
         include_comments = kwargs.get('include_comments', True)
         include_assignee = kwargs.get('include_assignee', True)
+        include_redmine_links = kwargs.get('include_redmine_links', True)
 
         json_str = open(redmine_json_fname, 'rU').read()
         rd = json.loads(json_str)       # The redmine issue as a python dict
@@ -320,9 +320,12 @@ class GithubIssueMaker:
 
         author_name = rd.get('author', {}).get('name', None)
         author_github_username = self.format_name_for_github(author_name)
+        redmine_link = ""
+        if include_redmine_links:
+            redmine_link = self.format_redmine_issue_link(rd.get('id'))
 
         desc_dict = {'description' : translate_for_github(rd.get('description', 'no description'))\
-                    , 'redmine_link' : self.format_redmine_issue_link(rd.get('id'))\
+                    , 'redmine_link' : redmine_link
                     , 'redmine_issue_num' : rd.get('id')\
                     , 'start_date' : rd.get('start_date', None)\
                     , 'author_name' : author_name\
