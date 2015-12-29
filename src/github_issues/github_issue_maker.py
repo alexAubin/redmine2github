@@ -439,6 +439,34 @@ class GithubIssueMaker:
 
         return github_response['id']
 
+    # get a map of temporary github import ids to the final issue id on github
+    def get_github_ids(self, start_time):
+
+        # now check on the status, so that we can get the resulting github issue id
+        url = 'https://api.github.com/repos/{}/{}/import/issues?since={}'.format(get_github_auth()['user'], get_github_auth()['repo'], str(start_time))
+
+        headers = {
+            'Accept' : 'application/vnd.github.golden-comet-preview+json'
+        }
+
+        auth = (get_github_auth()['login'], get_github_auth()['password'])
+
+        r = requests.get(url, auth = auth, headers = headers)
+
+        print(r.status_code)
+        if r.status_code != 200 and r.status_code != 202:
+            msgx('Error checking status of issue. github http response status %s. json received: %s' % (r.status_code, r.json()))
+        print(url)
+        github_response = r.json()
+
+        github_id_map = dict()
+
+        for issue_response in github_response:
+            print(issue_response)
+            issue_url = issue_response['issue_url']
+            github_id_map[issue_response['id']] = issue_url.rsplit('/', 1)[-1]
+
+        return github_id_map
 
     def is_redmine_issue_closed(self, redmine_issue_dict):
         """
