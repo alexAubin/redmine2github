@@ -4,13 +4,10 @@ import sys
 import json
 import requests
 
-
 if __name__=='__main__':
     SRC_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.append(SRC_ROOT)
 
-from datetime import datetime
-import requests
 from jinja2 import Template
 from jinja2 import Environment, PackageLoader
 
@@ -370,9 +367,10 @@ class GithubIssueMaker:
         #
         comments_data = []
         if include_comments:
+
             journals = rd.get('journals', None)
-            #if journals:
-                #self.add_comments_for_issue(issue_obj.number, journals)
+            comment_template = self.jinja_env.get_template('comment.md')
+
             for j in journals:
                 notes = j.get('notes', None)
                 if not notes:
@@ -381,9 +379,16 @@ class GithubIssueMaker:
                 author_name = j.get('user', {}).get('name', None)
                 author_github_username = self.format_name_for_github(author_name)
 
+                note_dict = { 'description' : translate_for_github(notes)\
+                             , 'note_date' : j.get('created_on', None)\
+                             , 'author_name' : author_name\
+                             , 'author_github_username' : author_github_username\
+                             }
+                comment_info =  comment_template.render(note_dict)
+
                 # TODO: prepend original redmine author to comment body text
                 comment = {
-                    'body' : translate_for_github(notes),
+                    'body' : comment_info,
                     'created_at' : j.get('created_on', None),
                 }
                 comments_data.append(comment)
