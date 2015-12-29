@@ -352,17 +352,6 @@ class GithubIssueMaker:
         msg( github_issue_dict)
 
         #
-        # (3) Create the issue on github
-        #
-
-        #issue_obj = self.get_github_conn().issues.create(github_issue_dict)
-
-        #msgt('Github issue created: %s' % issue_obj.number)
-        #msg('issue id: %s' % issue_obj.id)
-        #msg('issue url: %s' % issue_obj.html_url)
-
-
-        #
         # (4) Add the redmine comments (journals) as github comments
         #
         comments_data = []
@@ -379,12 +368,27 @@ class GithubIssueMaker:
                 author_name = j.get('user', {}).get('name', None)
                 author_github_username = self.format_name_for_github(author_name)
 
-                note_dict = { 'description' : translate_for_github(notes)\
-                             , 'note_date' : j.get('created_on', None)\
-                             , 'author_name' : author_name\
-                             , 'author_github_username' : author_github_username\
-                             }
-                comment_info =  comment_template.render(note_dict)
+                note_dict = {
+                    'description' : translate_for_github(notes),
+                    'note_date' : j.get('created_on', None),
+                    'author_name' : author_name,
+                    'author_github_username' : author_github_username,
+                }
+
+                # check if this comment changed the ticket to its current status
+                # if so, record status change in comment
+                # TODO: would be nice to have the status ids mapped, and record
+                #       every status change in the comments. right now we only
+                #       have the status name of the current status of the ticket.
+                #       would need to get a map of status id to status name from
+                #       redmine. then add {{status_old}} to {{status_new}} in
+                #       the comment.md template
+                if 'details' in j:
+                    for detail in j['details']:
+                        if detail['name'] == 'status_id' and int(detail['new_value']) == rd['status']['id']:
+                            note_dict['status_new'] = rd['status']['name']
+
+                comment_info = comment_template.render(note_dict)
 
                 # TODO: prepend original redmine author to comment body text
                 comment = {
@@ -392,12 +396,6 @@ class GithubIssueMaker:
                     'created_at' : j.get('created_on', None),
                 }
                 comments_data.append(comment)
-
-        #
-        #   (5) Should this issue be closed?
-        #
-        #if self.is_redmine_issue_closed(rd):
-        #    self.close_github_issue(issue_obj.number)
 
         issue_data = {
           'issue' : {
