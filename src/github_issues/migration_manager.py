@@ -7,6 +7,7 @@ if __name__=='__main__':
 import time
 import re
 import json
+from datetime import datetime, timedelta
 from settings.base import get_github_auth, REDMINE_ISSUES_DIRECTORY, USER_MAP_FILE, LABEL_MAP_FILE, MILESTONE_MAP_FILE, REDMINE_TO_GITHUB_MAP_FILE
 
 
@@ -171,8 +172,13 @@ class MigrationManager:
             
         # Iterate through json files
         issue_cnt = 0
+        import_start_time = (datetime.utcnow() - timedelta(seconds = 10)).strftime("%Y-%m-%dT%H:%M:%SZ")
         
-        mapping_dict = self.get_dict_from_map_file()    # { redmine issue : github issue }
+        rm_gh_id_map = self.get_dict_from_map_file()    # { redmine issue : github issue }
+
+        # temporary IDs assigned by github during issue import
+        # we need to map these to redmine IDs, so they can be mapped to github issue numbers later
+        gh_import_rm_map = dict()
         for json_fname in self.get_redmine_json_fnames():
             
             # Pull the issue number from the file name
@@ -197,15 +203,31 @@ class MigrationManager:
             gm_kwargs = { 'include_assignee' : self.include_assignee \
                          , 'include_comments' : self.include_comments \
                         }
-            github_issue_number = gm.make_github_issue(json_fname_fullpath, **gm_kwargs)
+
+            github_import_num = gm.make_github_issue(json_fname_fullpath, **gm_kwargs)
         
-            if github_issue_number:
-                mapping_dict.update({ redmine_issue_num : github_issue_number})
-                self.save_dict_to_file(mapping_dict)
-        
+            gh_import_rm_map[github_import_num] = redmine_issue_num
+
+            # Need to keep issue imports to under 180 per minute, so pause every other issue
             if issue_cnt % 2 == 0:
                 msgt('sleep 1 seconds....')
                 time.sleep(1)
+
+            # Also need to keep under 5000 total api calls every hour
+            if issue_cnt % 50 == 0:
+                msgt('sleep 1 seconds....')
+                time.sleep(1)
+
+		
+        # get ids that have been imported since the start time
+        import_to_id_map = gm.get_github_ids(import_start_time)
+        print(import_to_id_map)
+        for import_num, id_num in import_to_id_map.iteritems():
+            # look up the redmine ticket number from the import number, then map that to the final github issue id
+            rm_gh_id_map.update({ gh_import_rm_map[import_num] : id_num})
+        #mapping_dict.update({ redmine_issue_num : github_issue_number})
+        self.save_dict_to_file(rm_gh_id_map)
+
 
 if __name__=='__main__':
     json_input_directory = os.path.join(REDMINE_ISSUES_DIRECTORY, '2014-1224')

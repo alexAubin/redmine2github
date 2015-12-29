@@ -428,7 +428,6 @@ class GithubIssueMaker:
 
         r = requests.post(url, data = json.dumps(issue_data), auth = auth, headers = headers)
 
-        print(r.status_code)
         if r.status_code != 200 and r.status_code != 202:
             msgx('Error importing issue. github http response status %s. json received: %s' % (r.status_code, r.json()))
         github_response = r.json()
@@ -453,16 +452,13 @@ class GithubIssueMaker:
 
         r = requests.get(url, auth = auth, headers = headers)
 
-        print(r.status_code)
         if r.status_code != 200 and r.status_code != 202:
             msgx('Error checking status of issue. github http response status %s. json received: %s' % (r.status_code, r.json()))
-        print(url)
         github_response = r.json()
 
         github_id_map = dict()
 
         for issue_response in github_response:
-            print(issue_response)
             issue_url = issue_response['issue_url']
             github_id_map[issue_response['id']] = issue_url.rsplit('/', 1)[-1]
 
