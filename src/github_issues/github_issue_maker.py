@@ -216,7 +216,7 @@ class GithubIssueMaker:
         original_issues_formatted = [ """[%s](%s)""" % (x, self.format_redmine_issue_link(x)) for x in original_related_tickets]
         original_issues_str = ', '.join(original_issues_formatted)
 
-        related_issues_formatted = [ '#%d' % x for x in github_related_tickets]
+        related_issues_formatted = [ '#%d' % int(x) for x in github_related_tickets]
         related_issue_str = ', '.join(related_issues_formatted)
         msg('Redmine related issues: %s' % original_issues_str)
         msg('Github related issues: %s' % related_issue_str)
