@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import requests
+import time
 
 if __name__=='__main__':
     SRC_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -410,17 +411,31 @@ class GithubIssueMaker:
 
         auth = (get_github_auth()['login'], get_github_auth()['password'])
 
-        r = requests.get(url, auth = auth, headers = headers)
-
-        if r.status_code != 200 and r.status_code != 202:
-            msgx('Error checking status of issue. github http response status %s. json received: %s' % (r.status_code, r.json()))
-        github_response = r.json()
-
         github_id_map = dict()
 
-        for issue_response in github_response:
-            issue_url = issue_response['issue_url']
-            github_id_map[issue_response['id']] = issue_url.rsplit('/', 1)[-1]
+        pending_count = 1
+        while pending_count > 0:
+
+            pending_count = 0
+
+            r = requests.get(url, auth = auth, headers = headers)
+
+            if r.status_code != 200 and r.status_code != 202:
+                msgx('Error checking status of issue. github http response status %s. json received: %s' % (r.status_code, r.json()))
+            github_response = r.json()
+
+            for issue_response in github_response:
+                if 'issue_url' not in issue_response:
+                    if issue_response['status'] == 'pending':
+                        pending_count += 1
+                    else:
+                        msgx("Couldn't find issue URL in github response: %s" % issue_response)
+                else:
+                    issue_url = issue_response['issue_url']
+                    github_id_map[issue_response['id']] = issue_url.rsplit('/', 1)[-1]
+            if pending_count > 0:
+                msgt("%d issue imports are still pending, sleeping then retrying id check" % pending_count)
+                time.sleep(5) # wait for a second to see if pending issues resolve
 
         return github_id_map
 
