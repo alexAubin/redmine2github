@@ -11,7 +11,7 @@ def get_translate_dict():
 
 def translate_for_github(content):
     if not content:
-        return None
+        return "No text."
     
     for k, v in get_translate_dict().items():
         content = content.replace(k, v)

@@ -356,46 +356,8 @@ class GithubIssueMaker:
         #
         comments_data = []
         if include_comments:
+            comments_data = self.add_comments_for_issue(rd)
 
-            journals = rd.get('journals', None)
-            comment_template = self.jinja_env.get_template('comment.md')
-
-            for j in journals:
-                notes = j.get('notes', None)
-                if not notes:
-                    continue
-
-                author_name = j.get('user', {}).get('name', None)
-                author_github_username = self.format_name_for_github(author_name)
-
-                note_dict = {
-                    'description' : translate_for_github(notes),
-                    'note_date' : j.get('created_on', None),
-                    'author_name' : author_name,
-                    'author_github_username' : author_github_username,
-                }
-
-                # check if this comment changed the ticket to its current status
-                # if so, record status change in comment
-                # TODO: would be nice to have the status ids mapped, and record
-                #       every status change in the comments. right now we only
-                #       have the status name of the current status of the ticket.
-                #       would need to get a map of status id to status name from
-                #       redmine. then add {{status_old}} to {{status_new}} in
-                #       the comment.md template
-                if 'details' in j:
-                    for detail in j['details']:
-                        if detail['name'] == 'status_id' and int(detail['new_value']) == rd['status']['id']:
-                            note_dict['status_new'] = rd['status']['name']
-
-                comment_info = comment_template.render(note_dict)
-
-                # TODO: prepend original redmine author to comment body text
-                comment = {
-                    'body' : comment_info,
-                    'created_at' : j.get('created_on', None),
-                }
-                comments_data.append(comment)
 
         issue_data = {
           'issue' : {
@@ -482,49 +444,50 @@ class GithubIssueMaker:
         return False
 
 
+    def add_comments_for_issue(self, rd):
 
-    def add_comments_for_issue(self, issue_num, journals):
-        """
-        Add comments
-        """
-        if journals is None:
-            msg('no journals')
-            return
-
+        journals = rd.get('journals', None)
         comment_template = self.jinja_env.get_template('comment.md')
 
+        comments_data = []
+
         for j in journals:
-            notes = j.get('notes', None)
-            if not notes:
-                continue
 
             author_name = j.get('user', {}).get('name', None)
             author_github_username = self.format_name_for_github(author_name)
 
-            note_dict = { 'description' : translate_for_github(notes)\
-                         , 'note_date' : j.get('created_on', None)\
-                         , 'author_name' : author_name\
-                         , 'author_github_username' : author_github_username\
-                         }
-            comment_info =  comment_template.render(note_dict)
+            note_dict = {
+                'description' : translate_for_github(j.get('notes', 'No text.')),
+                'note_date' : j.get('created_on', None),
+                'author_name' : author_name,
+                'author_github_username' : author_github_username,
+            }
 
-            comment_obj = None
-            try:
-                comment_obj = self.get_comments_service().create(issue_num, comment_info)
-            except requests.exceptions.HTTPError as e:
-                msgt('Error creating comment: %s' % e.message)
+            # check if this comment changed the ticket to its current status
+            # if so, record status change in comment
+            # TODO: would be nice to have the status ids mapped, and record
+            #       every status change in the comments. right now we only
+            #       have the status name of the current status of the ticket.
+            #       would need to get a map of status id to status name from
+            #       redmine. then add {{status_old}} to {{status_new}} in
+            #       the comment.md template
+            if 'details' in j:
+                for detail in j['details']:
+                    if detail['name'] == 'status_id' and int(detail['new_value']) == rd['status']['id']:
+                        note_dict['status_new'] = rd['status']['name']
+
+            if 'notes' not in note_dict and 'status_new' not in note_dict:
                 continue
 
-            if comment_obj:
-                dashes()
-                msg('comment created')
+            comment_info = comment_template.render(note_dict)
 
-                msg('comment id: %s' % comment_obj.id)
-                msg('api issue_url: %s' % comment_obj.issue_url)
-                msg('api comment url: %s' % comment_obj.url)
-                msg('html_url: %s' % comment_obj.html_url)
-                #msg(dir(comment_obj))
+            comment = {
+                'body' : comment_info,
+                'created_at' : j.get('created_on', None),
+            }
+            comments_data.append(comment)
 
+        return comments_data
 
 if __name__=='__main__':
     #auth = dict(login=GITHUB_LOGIN, password=GITHUB_PASSWORD_OR_PERSONAL_ACCESS_TOKEN, repo=GITHUB_TARGET_REPOSITORY, user=GITHUB_TARGET_USERNAME)
