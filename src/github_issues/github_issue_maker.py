@@ -210,18 +210,26 @@ class GithubIssueMaker:
             msg('Issue not found!')
             return
 
-        comments = self.get_github_conn().issues.comments.list(number=github_issue_num)
         if fix_issue_mentions:
+
+            # replace issue mentions in the issue description
+            # the lambda looks a little weird, but basically it is replacing the redmine issue with the github
+            # issue. if the redmine issue key isn't present in the map it which will replace the redmine issue
+            # with itself (e.g. not change it)
+            new_body = re.sub(r'#(\d+)', lambda m: '#{}'.format(redmine2github_issue_map.get(m.group(1), m.group(1))), issue.body)
+            if new_body != issue.body:
+                self.get_github_conn().issues.update(number=github_issue_num, data={'body':new_body})
+
             # iterate through the comments and replace issue mentions
+            comments = self.get_github_conn().issues.comments.list(number=github_issue_num)
             issue_pattern = re.compile(r'#(\d+)')
             for page in comments:
                 for c in page:
-                    # the lambda looks a little weird, but basically it is replacing the redmine issue with the github
-                    # issue. if the redmine issue key isn't present in the map it which will replace the redmine issue
-                    # with itself (e.g. not change it)
+                    # same lambda as above
                     new_body = re.sub(r'#(\d+)', lambda m: '#{}'.format(redmine2github_issue_map.get(m.group(1), m.group(1))), c.body)
                     if new_body != c.body:
                         self.get_github_conn().issues.comments.update(message=new_body, id=c.id)
+
 
         #
         # Update github issue with related and child tickets
