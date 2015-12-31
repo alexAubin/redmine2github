@@ -201,8 +201,24 @@ class MigrationManager:
                          , 'include_redmine_links' : self.include_redmine_links \
                         }
 
-            github_import_num = gm.make_github_issue(json_fname_fullpath, **gm_kwargs)
-        
+            [ http_status, github_response, reset_epoch ] = gm.make_github_issue(json_fname_fullpath, **gm_kwargs)
+            if http_status != 200 and http_status != 202:
+
+                # if rate limit exceeded, wait until reset
+                if "API rate limit exceeded" in github_response['message']:
+                    reset_time = datetime.fromtimestamp(int(reset_epoch)) - datetime.now()
+                    msg("Api limit exceeded, will reset in {}".format(reset_time))
+                    reset_time += timedelta(seconds=10)
+                    msg("Sleeping for {} seconds".format(reset_time.seconds))
+                    time.sleep(reset_time.seconds)
+                    [ http_status, github_response, reset_epoch ] = gm.make_github_issue(json_fname_fullpath, **gm_kwargs)
+
+                if http_status != 200 and http_status != 202:
+                    msgx('Error importing issue. github http response status %s. json received: %s' % (http_status, github_response))
+
+            print(github_response)
+            github_import_num = github_response['id']
+
             gh_import_rm_map[github_import_num] = redmine_issue_num
 
             # Need to keep issue imports to under 180 per minute, so pause every other issue

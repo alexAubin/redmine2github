@@ -414,15 +414,10 @@ class GithubIssueMaker:
 
         r = requests.post(url, data = json.dumps(issue_data), auth = auth, headers = headers)
 
-        if r.status_code != 200 and r.status_code != 202:
-            msgx('Error importing issue. github http response status %s. json received: %s' % (r.status_code, r.json()))
         github_response = r.json()
+        reset_epoch = r.headers['X-RateLimit-Reset']
 
-        # TODO: need error handling
-        #       check github json for status: failed
-        print(github_response)
-
-        return github_response['id']
+        return [ r.status_code, github_response, reset_epoch ]
 
     def get_github_ids(self, start_time):
         """ get a map of temporary github import ids to the final issue id on github """
