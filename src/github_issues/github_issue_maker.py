@@ -35,7 +35,7 @@ class GithubIssueMaker:
         self.comments_service = None
         self.milestone_manager = MilestoneHelper(milestone_mapping_filename)
         self.label_helper = LabelHelper(label_mapping_filename)
-        self.jinja_env = Environment(loader=PackageLoader('github_issues', 'templates'))
+        self.jinja_env = Environment(loader=PackageLoader('github_issues', 'templates'), trim_blocks=True, lstrip_blocks=True)
         self.user_map_helper = user_map_helper
 
     def get_comments_service(self):
@@ -476,8 +476,7 @@ class GithubIssueMaker:
             author_github_username = self.format_name_for_github(author_name)
 
             note_dict = {
-                'description' : translate_for_github(j.get('notes', 'No text.')),
-                'note_date' : j.get('created_on', None),
+                'description' : translate_for_github(j.get('notes', None)),
                 'author_name' : author_name,
                 'author_github_username' : author_github_username,
             }
@@ -514,7 +513,6 @@ class GithubIssueMaker:
 
             attachment_dict = {
                 'description' : translate_for_github(a.get('description', None)),
-                'note_date' : a.get('created_on', None),
                 'file_name' : a.get('filename', None),
                 'file_size' : humansize(a.get('filesize', None)),
                 'file_url' : a.get('content_url', None),

@@ -186,7 +186,7 @@ print (data['total_count'])
             for item in self.redmine_conn.issue.filter(project_id=self.project_name_or_identifier, status_id=self.issue_status, sort='id', offset=start_record)[:RECORD_RETRIEVAL_SIZE]: #, limit=RECORD_RETRIEVAL_SIZE):   #[start_record:end_record]
                 rec_cnt +=1
                 cnt +=1
-                msg('(%s) %s - %s' % (rec_cnt, item.id, item.subject))
+                #msg('(%s) %s - %s' % (rec_cnt, item.id, item.subject))
 
                 if self.specific_tickets_to_download is not None:
                     # only download specific tickets
