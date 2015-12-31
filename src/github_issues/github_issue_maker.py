@@ -4,6 +4,7 @@ import sys
 import json
 import requests
 import time
+import re
 
 if __name__=='__main__':
     SRC_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -108,12 +109,13 @@ class GithubIssueMaker:
         return github_username
 
 
-    def update_github_issue_with_related(self, redmine_json_fname, redmine2github_issue_map, include_redmine_links):
+    def update_github_issue_with_related(self, redmine_json_fname, redmine2github_issue_map, include_redmine_links, fix_issue_mentions):
         """
         Update a GitHub issue with related tickets as specfied in Redmine
 
         - Read the current github description
         - Add related notes to the bottom of description
+        - Update issue mentions with correct github issue number (in description and in comments)
         - Update the description
 
         "relations": [
@@ -141,11 +143,6 @@ class GithubIssueMaker:
 
         json_str = open(redmine_json_fname, 'rU').read()
         rd = json.loads(json_str)       # The redmine issue as a python dict
-        #msg('rd: %s' % rd)
-
-        if rd.get('relations', None) is None:
-            msg('no relations')
-            return
 
         redmine_issue_num = rd.get('id', None)
         if redmine_issue_num is None:
@@ -153,31 +150,31 @@ class GithubIssueMaker:
 
         github_issue_num = redmine2github_issue_map.get(str(redmine_issue_num), None)
         if github_issue_num is None:
-            msg('Redmine issue not in nap')
+            msg('Redmine issue not in map')
             return
-
 
         # Related tickets under 'relations'
         #
         github_related_tickets = []
         original_related_tickets = []
-        for rel in rd.get('relations'):
-            issue_to_id = rel.get('issue_to_id', None)
-            if issue_to_id is None:
-                continue
-            if rd.get('id') == issue_to_id:  # skip relations pointing to this ticket
-                continue
+        related_ticket_info = rd.get('relations', [])
+        if related_ticket_info:
+            for rel in related_ticket_info:
+                issue_to_id = rel.get('issue_to_id', None)
+                if issue_to_id is None:
+                    continue
+                if rd.get('id') == issue_to_id:  # skip relations pointing to this ticket
+                    continue
 
-            original_related_tickets.append(issue_to_id)
-            related_github_issue_num = redmine2github_issue_map.get(str(issue_to_id), None)
-            msg(related_github_issue_num)
-            if related_github_issue_num:
-                github_related_tickets.append(related_github_issue_num)
+                original_related_tickets.append(issue_to_id)
+                related_github_issue_num = redmine2github_issue_map.get(str(issue_to_id), None)
+                msg(related_github_issue_num)
+                if related_github_issue_num:
+                    github_related_tickets.append(related_github_issue_num)
         github_related_tickets.sort()
         original_related_tickets.sort()
         #
         # end: Related tickets under 'relations'
-
 
         # Related tickets under 'children'
         #
@@ -185,11 +182,9 @@ class GithubIssueMaker:
         #
         github_child_tickets = []
         original_child_tickets = []
-
         child_ticket_info = rd.get('children', [])
         if child_ticket_info:
-            for ctick in child_ticket_info:
-
+            for ctick in rd.get('children', []):
                 child_id = ctick.get('id', None)
                 if child_id is None:
                     continue
@@ -200,17 +195,39 @@ class GithubIssueMaker:
                 msg(child_github_issue_num)
                 if child_github_issue_num:
                     github_child_tickets.append(child_github_issue_num)
-            original_child_tickets.sort()
-            github_child_tickets.sort()
+        original_child_tickets.sort()
+        github_child_tickets.sort()
         #
         # end: Related tickets under 'children'
 
+        # update description with github ticket numbers
+        # update comments with github ticket numbers
+        # remove from relations/children list if already mentioned in comments
+
+        try:
+            issue = self.get_github_conn().issues.get(number=github_issue_num)
+        except pygithub3.exceptions.NotFound:
+            msg('Issue not found!')
+            return
+
+        comments = self.get_github_conn().issues.comments.list(number=github_issue_num)
+        if fix_issue_mentions:
+            # iterate through the comments and replace issue mentions
+            issue_pattern = re.compile(r'#(\d+)')
+            for page in comments:
+                for c in page:
+                    # the lambda looks a little weird, but basically it is replacing the redmine issue with the github
+                    # issue. if the redmine issue key isn't present in the map it which will replace the redmine issue
+                    # with itself (e.g. not change it)
+                    new_body = re.sub(r'#(\d+)', lambda m: '#{}'.format(redmine2github_issue_map.get(m.group(1), m.group(1))), c.body)
+                    if new_body != c.body:
+                        self.get_github_conn().issues.comments.update(message=new_body, id=c.id)
 
         #
         # Update github issue with related and child tickets
         #
         #
-        if len(original_related_tickets) == 0 and len(original_child_tickets)==0:
+        if not github_child_tickets and not github_related_tickets:
             return
 
         # Format related and children ticket numbers
@@ -232,12 +249,6 @@ class GithubIssueMaker:
         github_children_formatted = [ '#%d' % x for x in github_child_tickets]
         github_children_str = ', '.join(github_children_formatted)
         msg('Github sub-issues: %s' % github_children_str)
-
-        try:
-            issue = self.get_github_conn().issues.get(number=github_issue_num)
-        except pygithub3.exceptions.NotFound:
-            msg('Issue not found!')
-            return
 
         template = self.jinja_env.get_template('related_issues.md')
 

@@ -30,7 +30,7 @@ class MigrationManager:
         self.include_comments = kwargs.get('include_comments', True)
         self.include_assignee = kwargs.get('include_assignee', True)
         self.include_redmine_links = kwargs.get('include_redmine_links', True)
-
+        self.fix_issue_mentions = kwargs.get('fix_issue_mentions', False)
 
         self.user_mapping_filename = kwargs.get('user_mapping_filename', None)
         self.label_mapping_filename = kwargs.get('label_mapping_filename', None)
@@ -120,11 +120,7 @@ class MigrationManager:
 
 
     def migrate_related_tickets(self):
-        """
-        After github issues are already migrated, go back and udpate the descriptions to include "related tickets
-        
-        
-        """
+        """ After github issues are already migrated, go back and udpate the descriptions to include related tickets """
         
         gm = GithubIssueMaker()
          
@@ -154,10 +150,9 @@ class MigrationManager:
             
             json_fname_fullpath = os.path.join(self.redmine_json_directory, json_fname)
         
-            gm.update_github_issue_with_related(json_fname_fullpath, redmine2github_issue_map, self.include_redmine_links)
-            
-    
-    
+            gm.update_github_issue_with_related(json_fname_fullpath, redmine2github_issue_map, self.include_redmine_links, self.fix_issue_mentions)
+
+
     def migrate_issues(self):
         
         self.sanity_check()
@@ -234,18 +229,22 @@ class MigrationManager:
 if __name__=='__main__':
     json_input_directory = os.path.join(REDMINE_ISSUES_DIRECTORY, '2014-1224')
 
-    kwargs = dict(include_comments=True\
-                , redmine_issue_start_number=1\
-                , redmine_issue_end_number=5000\
-                #, user_mapping_filename=USER_MAP_FILE       # optional
-                , include_assignee=False    # Optional. Assignee must be in the github repo and USER_MAP_FILE above
-                , include_redmine_links=False    # Optional. will create links back to original redmine installation
-                , label_mapping_filename=LABEL_MAP_FILE     # optional
-                #, milestone_mapping_filename=MILESTONE_MAP_FILE # optional
-            )
-    mm = MigrationManager(json_input_directory\
-                            , REDMINE_TO_GITHUB_MAP_FILE\
-                            , **kwargs)
+    kwargs = dict(include_comments=True,
+                redmine_issue_start_number=1,
+                redmine_issue_end_number=5000,
+                user_mapping_filename=USER_MAP_FILE, # optional
+                # Optional. Assignee must be in the github repo and USER_MAP_FILE above
+                include_assignee=True,
+                # Optional. will create links back to original redmine installation
+                include_redmine_links=False,
+                # Optional. will look through github issues and map mentions
+                # (e.g. see #1234) to the correct github isse. This is expensive in terms of API calls.
+                fix_issue_mentions=True,
+                label_mapping_filename=LABEL_MAP_FILE, # optional
+                #milestone_mapping_filename=MILESTONE_MAP_FILE, # optional
+    )
+
+    mm = MigrationManager(json_input_directory, REDMINE_TO_GITHUB_MAP_FILE, **kwargs)
 
     #-------------------------------------------------
     # Run 1 - migrate issues from redmine to github
