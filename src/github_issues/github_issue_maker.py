@@ -13,6 +13,7 @@ from jinja2 import Template
 from jinja2 import Environment, PackageLoader
 
 from utils.msg_util import *
+from utils.human_size import *
 from github_issues.md_translate import translate_for_github
 from github_issues.milestone_helper import MilestoneHelper
 from github_issues.label_helper import LabelHelper
@@ -504,6 +505,31 @@ class GithubIssueMaker:
                 'created_at' : j.get('created_on', None),
             }
             comments_data.append(comment)
+
+        # add attachments as comments
+        for a in rd.get('attachments', None):
+
+            author_name = a.get('author', {}).get('name', None)
+            author_github_username = self.format_name_for_github(author_name)
+
+            attachment_dict = {
+                'description' : translate_for_github(a.get('description', None)),
+                'note_date' : a.get('created_on', None),
+                'file_name' : a.get('filename', None),
+                'file_size' : humansize(a.get('filesize', None)),
+                'file_url' : a.get('content_url', None),
+                'author_name' : author_name,
+                'author_github_username' : author_github_username,
+            }
+
+            comment_info = comment_template.render(attachment_dict)
+
+            comment = {
+                'body' : comment_info,
+                'created_at' : a.get('created_on', None),
+            }
+            comments_data.append(comment)
+
 
         return comments_data
 
