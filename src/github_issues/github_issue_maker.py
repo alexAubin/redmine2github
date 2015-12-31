@@ -379,9 +379,11 @@ class GithubIssueMaker:
 
         return self.import_issue(issue_data)
 
-    # use the github issue import api to import an issue in one api call (with correct dates)
-    # see: https://gist.github.com/jonmagic/5282384165e0f86ef105
     def import_issue(self, issue_data):
+        """ use the github issue import api to import an issue in one api call (with correct dates)
+
+        see: https://gist.github.com/jonmagic/5282384165e0f86ef105
+        """
 
         url = 'https://api.github.com/repos/{}/{}/import/issues'.format(get_github_auth()['user'], get_github_auth()['repo'])
 
@@ -403,8 +405,8 @@ class GithubIssueMaker:
 
         return github_response['id']
 
-    # get a map of temporary github import ids to the final issue id on github
     def get_github_ids(self, start_time):
+        """ get a map of temporary github import ids to the final issue id on github """
 
         # now check on the status, so that we can get the resulting github issue id
         url = 'https://api.github.com/repos/{}/{}/import/issues?since={}'.format(get_github_auth()['user'], get_github_auth()['repo'], str(start_time))
