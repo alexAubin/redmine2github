@@ -31,6 +31,7 @@ class MigrationManager:
         self.include_assignee = kwargs.get('include_assignee', True)
         self.include_redmine_links = kwargs.get('include_redmine_links', True)
         self.fix_issue_mentions = kwargs.get('fix_issue_mentions', False)
+        self.insert_dummy_issues = kwargs.get('insert_dummy_issues', False)
 
         self.user_mapping_filename = kwargs.get('user_mapping_filename', None)
         self.label_mapping_filename = kwargs.get('label_mapping_filename', None)
@@ -141,7 +142,7 @@ class MigrationManager:
             # Don't process after the redmine_issue_END_number
             if self.redmine_issue_end_number:
                 if redmine_issue_num > self.redmine_issue_end_number:
-                    print redmine_issue_num, self.redmine_issue_end_number
+                    print(redmine_issue_num, self.redmine_issue_end_number)
                     break
             
             issue_cnt += 1
@@ -175,33 +176,59 @@ class MigrationManager:
         # temporary IDs assigned by github during issue import
         # we need to map these to redmine IDs, so they can be mapped to github issue numbers later
         gh_import_rm_map = dict()
-        for json_fname in self.get_redmine_json_fnames():
-            
-            # Pull the issue number from the file name
-            redmine_issue_num = int(json_fname.replace('.json', ''))
+        if self.insert_dummy_issues:
+            loop_start = self.redmine_issue_start_number
+            loop_end = self.redmine_issue_end_number + 1
+        else:
+            loop_start = 0
+            loop_end = len(self.get_redmine_json_fnames())
 
-            # Start processing at or after redmine_issue_START_number
-            if not redmine_issue_num >= self.redmine_issue_start_number:
-                msg('Skipping Redmine issue: %s (start at %s)' % (redmine_issue_num, self.redmine_issue_start_number ))
-                continue        # skip tAttempt to create issue
-                # his
-            
-            # Don't process after the redmine_issue_END_number
-            if self.redmine_issue_end_number:
-                if redmine_issue_num > self.redmine_issue_end_number:
-                    print redmine_issue_num, self.redmine_issue_end_number
-                    break
+        for i in range(loop_start, loop_end):
+
+            if not self.insert_dummy_issues:
+                json_fname = self.get_redmine_json_fnames()[i]
+                # Pull the issue number from the file name
+                redmine_issue_num = int(json_fname.replace('.json', ''))
+
+                # Start processing at or after redmine_issue_START_number
+                if not redmine_issue_num >= self.redmine_issue_start_number:
+                    msg('Skipping Redmine issue: %s (start at %s)' % (redmine_issue_num, self.redmine_issue_start_number ))
+                    continue # skip attempt to create issue
+
+                # Don't process after the redmine_issue_END_number
+                if self.redmine_issue_end_number:
+                    if redmine_issue_num > self.redmine_issue_end_number:
+                        print(redmine_issue_num, self.redmine_issue_end_number)
+                        break
+            else:
+                redmine_issue_num = i
+
+                # check if issue num exists in json files
+                have_file = False
+                json_fname = None
+                for fn in self.get_redmine_json_fnames():
+                    if redmine_issue_num == int(fn.replace('.json', '')):
+                        json_fname = fn
+                        break
             
             issue_cnt += 1
 
-            msgt('(%s) Loading redmine issue: [%s] from file [%s]' % (issue_cnt, redmine_issue_num, json_fname))
-            json_fname_fullpath = os.path.join(self.redmine_json_directory, json_fname)
-            gm_kwargs = { 'include_assignee' : self.include_assignee \
-                         , 'include_comments' : self.include_comments \
-                         , 'include_redmine_links' : self.include_redmine_links \
-                        }
+            if json_fname:
 
-            [ http_status, github_response, reset_epoch ] = gm.make_github_issue(json_fname_fullpath, **gm_kwargs)
+                msgt('(%s) Loading redmine issue: [%s] from file [%s]' % (issue_cnt, redmine_issue_num, json_fname))
+                json_fname_fullpath = os.path.join(self.redmine_json_directory, json_fname)
+                gm_kwargs = { 'include_assignee' : self.include_assignee \
+                             , 'include_comments' : self.include_comments \
+                             , 'include_redmine_links' : self.include_redmine_links \
+                            }
+
+                [ http_status, github_response, reset_epoch ] = gm.make_github_issue(json_fname_fullpath, **gm_kwargs)
+
+            else:
+
+                msgt('(%s) Creating dummy issue: [%s]' % (issue_cnt, redmine_issue_num))
+                [ http_status, github_response, reset_epoch ] = gm.make_dummy_issue()
+
             if http_status != 200 and http_status != 202:
 
                 # if rate limit exceeded, wait until reset
@@ -211,7 +238,10 @@ class MigrationManager:
                     reset_time += timedelta(seconds=10)
                     msg("Sleeping for {} seconds".format(reset_time.seconds))
                     time.sleep(reset_time.seconds)
-                    [ http_status, github_response, reset_epoch ] = gm.make_github_issue(json_fname_fullpath, **gm_kwargs)
+                    if json_fname:
+                        [ http_status, github_response, reset_epoch ] = gm.make_github_issue(json_fname_fullpath, **gm_kwargs)
+                    else:
+                        [ http_status, github_response, reset_epoch ] = gm.make_dummy_issue()
 
                 if http_status != 200 and http_status != 202:
                     msgx('Error importing issue. github http response status %s. json received: %s' % (http_status, github_response))
@@ -255,7 +285,9 @@ if __name__=='__main__':
                 include_redmine_links=False,
                 # Optional. will look through github issues and map mentions
                 # (e.g. see #1234) to the correct github isse. This is expensive in terms of API calls.
-                fix_issue_mentions=True,
+                fix_issue_mentions=False,
+                # Will insert blank dummy issues to preserve redmine issue numbers (exclusive with fix_issue_mentions)
+                insert_dummy_issues=True,
                 label_mapping_filename=LABEL_MAP_FILE, # optional
                 #milestone_mapping_filename=MILESTONE_MAP_FILE, # optional
     )

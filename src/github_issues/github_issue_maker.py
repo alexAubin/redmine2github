@@ -311,6 +311,19 @@ class GithubIssueMaker:
         return False
 
 
+    def make_dummy_issue(self):
+        """Create a dummy issue to use up an issue number"""
+
+        issue_data = {
+          'issue' : {
+            'title' : "Dummy Issue",
+            'body' : "This is a dummy issue created to fill gaps in issue numbers during import from Redmine",
+            'closed' : True
+          },
+        }
+
+        return self.import_issue(issue_data)
+
 
     def make_github_issue(self, redmine_json_fname, **kwargs):
         """
