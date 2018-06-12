@@ -4,9 +4,11 @@
 ###### Original Redmine Comment
 {% elif status_new %}
 ###### Status Change
+{% else %}
+###### Properties Change
 {% endif %}
 {% if author_name %}
-Author Name: **{{ author_name }}** {% if author_github_username %}({{ author_github_username }}){% endif %}
+Author: **{{ author_name }}**
 
 {% endif %}
 {% if file_name %}

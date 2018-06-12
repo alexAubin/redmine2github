@@ -1,10 +1,9 @@
 {% if redmine_issue_num %}
-###### Original Redmine Issue: {{ redmine_issue_num }}{% if redmine_link %}, {{ redmine_link }}{% endif %}
+###### Original Redmine Issue: [{{ redmine_issue_num }}]({{ redmine_link }})
 
 {% endif %}
 {% if author_name %}
-Author Name: **{{ author_name }}** {% if author_github_username %}({{ author_github_username }}){% endif %}
-
+Author Name: **{{ author_name }}**
 {% endif %}
 
 ---

@@ -385,6 +385,8 @@ class GithubIssueMaker:
             assignee = self.get_assignee(rd)
             if assignee:
                 github_issue_dict['assignee'] = assignee
+        else:
+            assignee = None
 
         msg( github_issue_dict)
 
@@ -394,7 +396,6 @@ class GithubIssueMaker:
         comments_data = []
         if include_comments:
             comments_data = self.add_comments_for_issue(rd)
-
 
         issue_data = {
           'issue' : {
@@ -523,8 +524,8 @@ class GithubIssueMaker:
                     if detail['name'] == 'status_id' and int(detail['new_value']) == rd['status']['id']:
                         note_dict['status_new'] = rd['status']['name']
 
-            if 'notes' not in note_dict and 'status_new' not in note_dict:
-                continue
+            #if 'notes' not in note_dict and 'status_new' not in note_dict:
+            #    continue
 
             comment_info = comment_template.render(note_dict)
 
